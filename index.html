@@ -19,17 +19,25 @@ canvas { position: absolute; top: 0; left: 0; }
   z-index: 10;
 }
 </style>
+
+<!-- 🔥 IMPORT MAP (ESTO ARREGLA TODO) -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.158.0/build/three.module.js"
+  }
+}
+</script>
+
 </head>
 
 <body>
 
-<div id="info">Cargando modelo...</div>
+<div id="info">Iniciando...</div>
 
 <script type="module">
 
-// 🔥 IMPORT MAP (SOLUCIONA TU ERROR)
-import * as THREE from 'https://unpkg.com/three@0.158.0/build/three.module.js';
-
+import * as THREE from 'three';
 import { OrbitControls } from 'https://unpkg.com/three@0.158.0/examples/jsm/controls/OrbitControls.js';
 import { OBJLoader } from 'https://unpkg.com/three@0.158.0/examples/jsm/loaders/OBJLoader.js';
 import { MTLLoader } from 'https://unpkg.com/three@0.158.0/examples/jsm/loaders/MTLLoader.js';
@@ -38,96 +46,94 @@ import { MTLLoader } from 'https://unpkg.com/three@0.158.0/examples/jsm/loaders/
 const scene = new THREE.Scene();
 
 // CÁMARA
-const camera = new THREE.PerspectiveCamera(
-  70,
-  window.innerWidth / window.innerHeight,
-  0.01,
-  100
-);
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.01, 100);
 camera.position.set(0, 0, 2);
 
 // RENDER
 const renderer = new THREE.WebGLRenderer({ alpha: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
 // CONTROLES
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableZoom = true;
-controls.enablePan = false;
 controls.enableDamping = true;
 
 // LUZ
-const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
-scene.add(light);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1));
 
-// RUTAS (IMPORTANTE: mismo folder)
+// 📁 RUTAS (MISMA CARPETA)
 const OBJ_URL = "./mi_modelo.obj";
 const MTL_URL = "./mi_modelo.mtl";
 
-// CARGA MTL + OBJ
+// 🔥 CARGA MODELO
 const mtlLoader = new MTLLoader();
 
-mtlLoader.load(MTL_URL, (materials) => {
+mtlLoader.load(MTL_URL,
+  (materials) => {
 
-  materials.preload();
+    console.log("MTL OK");
 
-  const objLoader = new OBJLoader();
-  objLoader.setMaterials(materials);
+    materials.preload();
 
-  objLoader.load(
-    OBJ_URL,
-    (object) => {
+    const objLoader = new OBJLoader();
+    objLoader.setMaterials(materials);
 
-      object.scale.set(0.5, 0.5, 0.5);
-      scene.add(object);
+    objLoader.load(
+      OBJ_URL,
+      (object) => {
 
-      document.getElementById("info").innerText =
-        "Arrastra para rotar • Pellizca para zoom";
+        console.log("OBJ OK");
 
-    },
-    undefined,
-    (error) => {
-      console.error("ERROR OBJ:", error);
-      document.getElementById("info").innerText =
-        "Error cargando OBJ (ver consola)";
-    }
-  );
+        object.scale.set(0.05, 0.05, 0.05);
+        object.position.set(0, 0, -1);
 
-},
-undefined,
-(error) => {
-  console.error("ERROR MTL:", error);
-  document.getElementById("info").innerText =
-    "Error cargando MTL";
-});
+        scene.add(object);
 
-// CÁMARA (AR fake)
-navigator.mediaDevices.getUserMedia({
-  video: { facingMode: "environment" }
-})
-.then(stream => {
+        document.getElementById("info").innerText =
+          "Modelo listo ✔";
 
-  const video = document.createElement('video');
-  video.srcObject = stream;
-  video.setAttribute("playsinline", true);
-  video.play();
+      },
+      undefined,
+      (e) => {
+        console.error("OBJ ERROR", e);
+        document.getElementById("info").innerText =
+          "Error OBJ (ver consola)";
+      }
+    );
 
-  const texture = new THREE.VideoTexture(video);
-  scene.background = texture;
+  },
+  undefined,
+  (e) => {
+    console.error("MTL ERROR", e);
+    document.getElementById("info").innerText =
+      "Error MTL";
+  }
+);
 
-})
-.catch(() => {
-  document.getElementById("info").innerText =
-    "Permiso de cámara denegado";
-});
+// 📷 CÁMARA
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" }
+    });
 
-// RESPONSIVE
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+    const video = document.createElement("video");
+    video.srcObject = stream;
+    video.setAttribute("playsinline", true);
+    await video.play();
+
+    scene.background = new THREE.VideoTexture(video);
+
+    console.log("Cámara OK");
+
+  } catch (e) {
+    console.error("CAM ERROR", e);
+    document.getElementById("info").innerText =
+      "Sin acceso a cámara";
+  }
+}
+
+startCamera();
 
 // LOOP
 function animate() {
@@ -135,8 +141,14 @@ function animate() {
   controls.update();
   renderer.render(scene, camera);
 }
-
 animate();
+
+// RESIZE
+addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
 
 </script>
 
