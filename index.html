@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OBJ AR Viewer</title>
+<title>OBJ Viewer</title>
 
 <style>
 body { margin: 0; overflow: hidden; background: black; }
@@ -23,7 +23,7 @@ canvas { position: absolute; top: 0; left: 0; }
 
 <body>
 
-<div id="info">Cargando modelo...</div>
+<div id="info">Inicializando...</div>
 
 <script type="module">
 
@@ -32,6 +32,7 @@ import { OBJLoader } from 'https://cdn.jsdelivr.net/npm/three@0.158/examples/jsm
 import { MTLLoader } from 'https://cdn.jsdelivr.net/npm/three@0.158/examples/jsm/loaders/MTLLoader.js';
 import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.158/examples/jsm/controls/OrbitControls.js';
 
+// ESCENA
 let scene = new THREE.Scene();
 
 let camera = new THREE.PerspectiveCamera(
@@ -45,7 +46,7 @@ let renderer = new THREE.WebGLRenderer({ alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// CONTROLES (rotar y zoom)
+// CONTROLES
 let controls = new OrbitControls(camera, renderer.domElement);
 controls.enableZoom = true;
 controls.enablePan = false;
@@ -57,35 +58,11 @@ camera.position.set(0, 0, 2);
 let light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
 scene.add(light);
 
-// ARCHIVOS (MISMO NOMBRE)
+// ARCHIVOS
 const OBJ_URL = "mi_modelo.obj";
 const MTL_URL = "mi_modelo.mtl";
 
-// CARGA MTL + OBJ
-const mtlLoader = new MTLLoader();
-
-mtlLoader.load(MTL_URL, (materials) => {
-
-  materials.preload();
-
-  const objLoader = new OBJLoader();
-  objLoader.setMaterials(materials);
-
-  objLoader.load(OBJ_URL, (object) => {
-
-    // AJUSTES
-    object.scale.set(0.5, 0.5, 0.5);
-    object.position.set(0, 0, 0);
-
-    scene.add(object);
-
-    document.getElementById("info").innerText = "Arrastra para rotar • Pellizca para zoom";
-
-  });
-
-});
-
-// CÁMARA DEL CELULAR
+// 🔥 SIEMPRE INICIAR CÁMARA PRIMERO
 navigator.mediaDevices.getUserMedia({
   video: { facingMode: "environment" }
 })
@@ -101,7 +78,66 @@ navigator.mediaDevices.getUserMedia({
 
 })
 .catch(() => {
-  document.getElementById("info").innerText = "Permiso de cámara denegado";
+  document.getElementById("info").innerText = "No se pudo acceder a la cámara";
+});
+
+// 🔄 FUNCIÓN DE CARGA FALLBACK
+function cargarOBJSinMTL() {
+
+  const loader = new OBJLoader();
+
+  loader.load(OBJ_URL, (object) => {
+
+    object.scale.set(0.5, 0.5, 0.5);
+
+    // MATERIAL BÁSICO PARA ASEGURAR VISIBILIDAD
+    object.traverse(child => {
+      if (child.isMesh) {
+        child.material = new THREE.MeshNormalMaterial();
+      }
+    });
+
+    scene.add(object);
+
+    document.getElementById("info").innerText = "Arrastra para rotar • Pellizca para zoom";
+
+  }, undefined, () => {
+
+    document.getElementById("info").innerText = "Error cargando OBJ";
+
+  });
+
+}
+
+// 🔄 INTENTO CON MTL
+const mtlLoader = new MTLLoader();
+
+mtlLoader.load(MTL_URL, (materials) => {
+
+  materials.preload();
+
+  const objLoader = new OBJLoader();
+  objLoader.setMaterials(materials);
+
+  objLoader.load(OBJ_URL, (object) => {
+
+    object.scale.set(0.5, 0.5, 0.5);
+    scene.add(object);
+
+    document.getElementById("info").innerText = "Arrastra para rotar • Pellizca para zoom";
+
+  }, undefined, () => {
+
+    // SI FALLA OBJ → fallback
+    cargarOBJSinMTL();
+
+  });
+
+}, undefined, () => {
+
+  // SI FALLA MTL → fallback
+  cargarOBJSinMTL();
+
 });
 
 // RESPONSIVE
