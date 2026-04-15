@@ -23,121 +23,113 @@ canvas { position: absolute; top: 0; left: 0; }
 
 <body>
 
-<div id="info">Inicializando...</div>
+<div id="info">Cargando modelo...</div>
 
 <script type="module">
 
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158/build/three.module.js';
-import { OBJLoader } from 'https://cdn.jsdelivr.net/npm/three@0.158/examples/jsm/loaders/OBJLoader.js';
-import { MTLLoader } from 'https://cdn.jsdelivr.net/npm/three@0.158/examples/jsm/loaders/MTLLoader.js';
-import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.158/examples/jsm/controls/OrbitControls.js';
+// 🔥 IMPORT MAP (SOLUCIONA TU ERROR)
+import * as THREE from 'https://unpkg.com/three@0.158.0/build/three.module.js';
 
-// ───────── SCENE ─────────
+import { OrbitControls } from 'https://unpkg.com/three@0.158.0/examples/jsm/controls/OrbitControls.js';
+import { OBJLoader } from 'https://unpkg.com/three@0.158.0/examples/jsm/loaders/OBJLoader.js';
+import { MTLLoader } from 'https://unpkg.com/three@0.158.0/examples/jsm/loaders/MTLLoader.js';
+
+// ESCENA
 const scene = new THREE.Scene();
 
+// CÁMARA
 const camera = new THREE.PerspectiveCamera(
   70,
   window.innerWidth / window.innerHeight,
   0.01,
   100
 );
+camera.position.set(0, 0, 2);
 
+// RENDER
 const renderer = new THREE.WebGLRenderer({ alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// ───────── CONTROLES ─────────
+// CONTROLES
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableZoom = true;
 controls.enablePan = false;
 controls.enableDamping = true;
 
-camera.position.set(0, 0, 2);
-
-// ───────── LUZ ─────────
+// LUZ
 const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
 scene.add(light);
 
-// ───────── RUTAS CORRECTAS (CLAVE) ─────────
-const OBJ_URL = "/realidad_aumentada/mi_modelo.obj";
-const MTL_URL = "/realidad_aumentada/mi_modelo.mtl";
+// RUTAS (IMPORTANTE: mismo folder)
+const OBJ_URL = "./mi_modelo.obj";
+const MTL_URL = "./mi_modelo.mtl";
 
-// ───────── CARGA MODELO ─────────
+// CARGA MTL + OBJ
 const mtlLoader = new MTLLoader();
 
-mtlLoader.load(MTL_URL,
-  (materials) => {
+mtlLoader.load(MTL_URL, (materials) => {
 
-    console.log("✅ MTL cargado");
-    materials.preload();
+  materials.preload();
 
-    const objLoader = new OBJLoader();
-    objLoader.setMaterials(materials);
+  const objLoader = new OBJLoader();
+  objLoader.setMaterials(materials);
 
-    objLoader.load(OBJ_URL,
-      (object) => {
+  objLoader.load(
+    OBJ_URL,
+    (object) => {
 
-        console.log("✅ OBJ cargado");
+      object.scale.set(0.5, 0.5, 0.5);
+      scene.add(object);
 
-        // Ajustes críticos
-        object.scale.set(0.05, 0.05, 0.05);
-        object.position.set(0, 0, -1);
+      document.getElementById("info").innerText =
+        "Arrastra para rotar • Pellizca para zoom";
 
-        scene.add(object);
+    },
+    undefined,
+    (error) => {
+      console.error("ERROR OBJ:", error);
+      document.getElementById("info").innerText =
+        "Error cargando OBJ (ver consola)";
+    }
+  );
 
-        document.getElementById("info").innerText =
-          "Modelo listo ✔ • Arrastra para rotar • Pellizca para zoom";
+},
+undefined,
+(error) => {
+  console.error("ERROR MTL:", error);
+  document.getElementById("info").innerText =
+    "Error cargando MTL";
+});
 
-      },
-      (xhr) => {
-        console.log("Cargando OBJ:", (xhr.loaded / xhr.total * 100) + "%");
-      },
-      (error) => {
-        console.error("❌ ERROR OBJ:", error);
-        document.getElementById("info").innerText = "Error cargando OBJ";
-      }
-    );
-  },
-  undefined,
-  (error) => {
-    console.error("❌ ERROR MTL:", error);
-    document.getElementById("info").innerText = "Error cargando MTL";
-  }
-);
+// CÁMARA (AR fake)
+navigator.mediaDevices.getUserMedia({
+  video: { facingMode: "environment" }
+})
+.then(stream => {
 
-// ───────── CÁMARA ─────────
-async function startCamera() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" }
-    });
+  const video = document.createElement('video');
+  video.srcObject = stream;
+  video.setAttribute("playsinline", true);
+  video.play();
 
-    const video = document.createElement('video');
-    video.srcObject = stream;
-    video.setAttribute("playsinline", true);
-    await video.play();
+  const texture = new THREE.VideoTexture(video);
+  scene.background = texture;
 
-    const texture = new THREE.VideoTexture(video);
-    scene.background = texture;
+})
+.catch(() => {
+  document.getElementById("info").innerText =
+    "Permiso de cámara denegado";
+});
 
-    console.log("📷 Cámara activada");
-
-  } catch (e) {
-    console.error("❌ Error cámara:", e);
-    document.getElementById("info").innerText = "Sin acceso a cámara";
-  }
-}
-
-startCamera();
-
-// ───────── RESIZE ─────────
+// RESPONSIVE
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// ───────── LOOP ─────────
+// LOOP
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
